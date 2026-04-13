@@ -10,7 +10,8 @@ class MinHeap:
 
     def __init__(self):
         self.root = None
-        self.size = 0 
+        self.size = 0
+        self.node_map = {} 
 
     def insert_node(self, cost, node_id):
         """
@@ -18,10 +19,11 @@ class MinHeap:
             - Preserve shape: place the new node in the next available position, left to right
                             (We find this position using the binary representation of (size + 1))
             - Satisfying invariant, parent.cost <= children.cost
-                            (the node with the smallest distance is always at the root)
+                            (the node with the smallest cost is always at the root)
         """
 
         new_node = HeapNode(cost, node_id)
+        self.node_map[node_id] = new_node   # register node in the lookup table
     
         # Use binary representation of (size + 1) to find the exact path to the insertion position.
         binary = str(bin(self.size + 1))[3:]
@@ -66,9 +68,19 @@ class MinHeap:
             if current.cost < current.parent.cost:
                 current.cost, current.parent.cost = current.parent.cost, current.cost
                 current.node_id, current.parent.node_id = current.parent.node_id, current.node_id
+
+                # two map updates after every swap
+                self.node_map[current.node_id]        = current
+                self.node_map[current.parent.node_id] = current.parent
+
                 current = current.parent
             else:
                 break
+
+    def decrease_key(self, node_id, new_cost):
+        node = self.node_map[node_id]  # O(1) lookup
+        node.cost = new_cost
+        self.sort_up(node)             # sort up to restore invariant
 
     def _find_last_node(self):
         """
@@ -109,6 +121,9 @@ class MinHeap:
  
             current.cost,    smallest.cost    = smallest.cost,    current.cost
             current.node_id, smallest.node_id = smallest.node_id, current.node_id
+
+            self.node_map[current.node_id]  = current
+            self.node_map[smallest.node_id] = smallest 
             current = smallest
 
     # use by dijkstra.py
@@ -122,6 +137,9 @@ class MinHeap:
         min_cost = self.root.cost   # Save the root's data
         min_id   = self.root.node_id
 
+        # remove the extracted node from the lookup table
+        del self.node_map[min_id]
+
         # Copying the last node's data into the root
         # If only one node left
         if self.size == 1:
@@ -133,7 +151,9 @@ class MinHeap:
         last_node = self._find_last_node()
         self.root.cost    = last_node.cost
         self.root.node_id = last_node.node_id
- 
+
+        self.node_map[self.root.node_id] = self.root
+
         # delete the last node from its parent
         if last_node.parent.left == last_node:
             last_node.parent.left = None
